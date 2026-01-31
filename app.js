@@ -2,7 +2,6 @@ import {
   DEFAULT_GRID,
   DIFFICULTY,
   isOpposite,
-  sameCell,
   placeApple,
   createInitialState,
   stepState,
@@ -17,13 +16,18 @@ import {
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const speedEl = document.getElementById('speed');
-  const btnPause = document.getElementById('btnPause');
-  const btnRestart = document.getElementById('btnRestart');
 
   const difficultyEl = document.getElementById('difficulty');
   const themeEl = document.getElementById('theme');
   const soundEl = document.getElementById('sound');
   const runsEl = document.getElementById('runs');
+
+  // Overlay
+  const overlayEl = document.getElementById('overlay');
+  const overlayTitleEl = document.getElementById('overlayTitle');
+  const overlaySubEl = document.getElementById('overlaySub');
+  const btnStart = document.getElementById('btnStart');
+  const btnRestartBig = document.getElementById('btnRestartBig');
 
   // On-screen controls (mobile)
   const dpadEl = document.getElementById('dpad');
@@ -31,8 +35,6 @@ import {
   const btnDown = document.getElementById('btnDown');
   const btnLeft = document.getElementById('btnLeft');
   const btnRight = document.getElementById('btnRight');
-
-  const btnFullscreen = document.getElementById('btnFullscreen');
 
   const GRID = DEFAULT_GRID;
 
@@ -42,27 +44,25 @@ import {
 
   const state = {
     core: createInitialState({ grid: GRID, tickBase: DIFFICULTY.normal }),
-
     lastTick: 0,
-    touchStart: null,
+
+    ui: {
+      started: false,
+      swipeMinPx: 18,
+    },
 
     audio: {
       enabled: true,
       ctx: null,
     },
 
-    ui: {
-      // used for swipe sensitivity
-      swipeMinPx: 18,
-    },
-
-    // Canvas scaling
     view: {
-      cssSize: 480,
       dpr: 1,
       cellPx: 20,
     },
   };
+
+  // ----- storage -----
 
   function loadBest(){
     const v = Number(localStorage.getItem(BEST_KEY) || '0');
@@ -110,6 +110,22 @@ import {
     }
   }
 
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function saveSettings(s){
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  }
+
+  // ----- UI helpers -----
+
   function setScore(v){
     state.core.score = v;
     scoreEl.textContent = String(v);
@@ -125,22 +141,22 @@ import {
     speedEl.textContent = `${mult.toFixed(1)}x`;
   }
 
-  function loadSettings(){
-    try{
-      const raw = localStorage.getItem(SETTINGS_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
+  function applyTheme(key){
+    document.body.dataset.theme = key === 'light' ? 'light' : 'dark';
   }
 
-  function saveSettings(s){
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  function showOverlay({ title, sub, showStart, showRestart }){
+    overlayTitleEl.textContent = title;
+    overlaySubEl.textContent = sub;
+
+    btnStart.classList.toggle('hidden', !showStart);
+    btnRestartBig.classList.toggle('hidden', !showRestart);
+
+    overlayEl.classList.toggle('hidden', false);
   }
 
-  function applyTheme(theme){
-    document.body.dataset.theme = theme || 'night';
+  function hideOverlay(){
+    overlayEl.classList.toggle('hidden', true);
   }
 
   function ensureAudio(){
@@ -155,7 +171,7 @@ import {
     return state.audio.ctx;
   }
 
-  function beep(freq, ms, type='sine', gain=0.05){
+  function beep(freq, ms, type='sine', gain=0.09){
     if (!state.audio.enabled) return;
     const ac = ensureAudio();
     if (!ac) return;
@@ -181,45 +197,145 @@ import {
   }
 
   function haptic(pattern){
-    // Nice-to-have, non-blocking.
+    if (!state.audio.enabled) return; // treat as part of "feedback"
     if (navigator.vibrate) {
       try { navigator.vibrate(pattern); } catch {}
     }
   }
 
-  function placeAppleForCore(){
-    state.core.apple = placeApple(Math.random, state.core.snake, state.core.grid);
-  }
-
-  function reset(){
-    const { grid } = state.core;
-    const tickBase = state.core.tickBase;
-    state.core = createInitialState({ grid, tickBase });
-    setScore(0);
-    setSpeed(state.core.tickBase / state.core.tickMs);
-    btnPause.textContent = '暂停 (Space)';
-  }
-
   function computeCanvasSize(){
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-    // canvas container width based sizing
     const rect = canvas.getBoundingClientRect();
-    // Ensure square canvas. Use the smallest of width/height available.
     const cssSize = Math.floor(Math.max(260, Math.min(rect.width || 480, 560)));
-
     const pxSize = Math.floor(cssSize * dpr);
 
     canvas.width = pxSize;
     canvas.height = pxSize;
 
-    state.view.cssSize = cssSize;
     state.view.dpr = dpr;
     state.view.cellPx = pxSize / GRID;
 
-    // important: scale drawing units to physical pixels
     ctx.setTransform(1,0,0,1,0,0);
   }
+
+  // ----- game control -----
+
+  function placeAppleForCore(){
+    state.core.apple = placeApple(Math.random, state.core.snake, state.core.grid);
+  }
+
+  function resetToReady(){
+    const { grid } = state.core;
+    const tickBase = state.core.tickBase;
+
+    state.core = createInitialState({ grid, tickBase });
+    state.core.running = false; // wait for start
+    state.core.gameOver = false;
+
+    state.ui.started = false;
+    state.lastTick = 0;
+
+    setScore(0);
+    setSpeed(state.core.tickBase / state.core.tickMs);
+
+    showOverlay({
+      title: '准备好了吗？',
+      sub: '点一下开始，主银～',
+      showStart: true,
+      showRestart: false,
+    });
+  }
+
+  function startGame(){
+    ensureAudio();
+    beep(520, 70, 'sine', 0.08);
+
+    state.ui.started = true;
+    state.core.running = true;
+    state.core.gameOver = false;
+
+    hideOverlay();
+  }
+
+  function finishRun(){
+    const runs = loadRuns();
+    runs.push({ score: state.core.score, t: Date.now() });
+    saveRuns(runs.slice(-50));
+    renderRuns();
+  }
+
+  function doGameOver(reason){
+    if (state.core.gameOver) return;
+    state.core.gameOver = true;
+    state.core.running = false;
+
+    // Make feedback clearly different
+    beep(180, 140, 'sawtooth', 0.10);
+    setTimeout(() => beep(120, 180, 'triangle', 0.10), 70);
+    haptic([60, 40, 90]);
+
+    finishRun();
+
+    showOverlay({
+      title: '游戏结束',
+      sub: reason === 'self' ? '撞到自己啦～' : '撞墙啦～',
+      showStart: false,
+      showRestart: true,
+    });
+  }
+
+  function doStep(){
+    const r = stepState(state.core);
+    state.core = r.state;
+
+    if (r.event === 'gameover_wall') return doGameOver('wall');
+    if (r.event === 'gameover_self') return doGameOver('self');
+
+    if (r.event === 'eat' || r.event === 'speedup'){
+      if (!state.core.apple) placeAppleForCore();
+
+      setScore(state.core.score);
+
+      if (r.event === 'eat'){
+        beep(880, 70, 'sine', 0.08);
+        haptic(20);
+      } else {
+        setSpeed(state.core.tickBase / state.core.tickMs);
+        beep(1040, 90, 'triangle', 0.07);
+        haptic(30);
+      }
+    }
+  }
+
+  function loop(ts){
+    if (!state.lastTick) state.lastTick = ts;
+    const elapsed = ts - state.lastTick;
+
+    if (state.core.running && !state.core.gameOver && elapsed >= state.core.tickMs){
+      state.lastTick = ts;
+      doStep();
+    }
+
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function setDirection(dx, dy){
+    const next = { x: dx, y: dy };
+    if (dx === 0 && dy === 0) return;
+    if (isOpposite(state.core.dir, next)) return;
+    state.core.nextDir = next;
+  }
+
+  function applyDifficulty(key){
+    const base = DIFFICULTY[key] ?? DIFFICULTY.normal;
+    state.core.tickBase = base;
+    state.core.tickMs = base;
+    setSpeed(state.core.tickBase / state.core.tickMs);
+  }
+
+  // ----- rendering (better snake + food) -----
 
   function drawGrid(){
     const gridColor = getComputedStyle(document.body).getPropertyValue('--grid').trim() || 'rgba(255,255,255,0.08)';
@@ -254,16 +370,109 @@ import {
     ctx.closePath();
   }
 
-  function renderOverlay(textMain, textSub){
+  function drawApple(cell){
+    const appleColor = getComputedStyle(document.body).getPropertyValue('--apple').trim() || 'rgba(255, 90, 110, 0.95)';
+
+    const ax = state.core.apple.x * cell;
+    const ay = state.core.apple.y * cell;
+
+    // body
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0,0,canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.textAlign = 'center';
-    ctx.font = `800 ${Math.floor(canvas.width * 0.06)}px system-ui, sans-serif`;
-    ctx.fillText(textMain, canvas.width/2, canvas.height/2 - 10);
-    ctx.font = `500 ${Math.floor(canvas.width * 0.032)}px system-ui, sans-serif`;
-    ctx.fillText(textSub, canvas.width/2, canvas.height/2 + 18);
+    ctx.fillStyle = appleColor;
+    const r = cell * 0.34;
+    const cx = ax + cell * 0.5;
+    const cy = ay + cell * 0.55;
+
+    ctx.beginPath();
+    ctx.arc(cx - r*0.55, cy, r, 0, Math.PI*2);
+    ctx.arc(cx + r*0.55, cy, r, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.fill();
+
+    // highlight
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(cx - r*0.7, cy - r*0.4, r*0.35, r*0.55, -0.4, 0, Math.PI*2);
+    ctx.fill();
+
+    // stem + leaf
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(90,60,40,0.95)';
+    ctx.lineWidth = Math.max(2, cell * 0.10);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, ay + cell * 0.30);
+    ctx.lineTo(cx, ay + cell * 0.14);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(70, 190, 110, 0.95)';
+    ctx.beginPath();
+    ctx.ellipse(cx + cell*0.18, ay + cell*0.18, cell*0.18, cell*0.10, -0.6, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSnake(cell){
+    const headColor = getComputedStyle(document.body).getPropertyValue('--snake-head').trim() || 'rgba(122,162,255,0.95)';
+    const bodyColor = getComputedStyle(document.body).getPropertyValue('--snake-body').trim() || 'rgba(122,162,255,0.70)';
+
+    const s = state.core.snake;
+
+    ctx.save();
+    for (let i=0; i<s.length; i++){
+      const seg = s[i];
+      const x = seg.x * cell;
+      const y = seg.y * cell;
+
+      const t = i / Math.max(1, s.length - 1);
+      const pad = cell * (0.10 + t*0.12); // tail thinner
+      const w = cell - pad*2;
+      const r = cell * 0.28;
+
+      ctx.fillStyle = (i === 0) ? headColor : bodyColor;
+      drawRoundedRect(x + pad, y + pad, w, w, r);
+      ctx.fill();
+
+      if (i === 0){
+        // Eyes based on direction
+        const dir = state.core.dir;
+        const ex = x + cell*0.5;
+        const ey = y + cell*0.5;
+        const off = cell*0.16;
+
+        let e1 = {x: ex - off, y: ey - off};
+        let e2 = {x: ex + off, y: ey - off};
+
+        if (dir.x === 1 && dir.y === 0){ // right
+          e1 = {x: ex + off*0.5, y: ey - off};
+          e2 = {x: ex + off*0.5, y: ey + off};
+        } else if (dir.x === -1 && dir.y === 0){ // left
+          e1 = {x: ex - off*0.5, y: ey - off};
+          e2 = {x: ex - off*0.5, y: ey + off};
+        } else if (dir.x === 0 && dir.y === 1){ // down
+          e1 = {x: ex - off, y: ey + off*0.5};
+          e2 = {x: ex + off, y: ey + off*0.5};
+        } // up default already
+
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.arc(e1.x, e1.y, cell*0.07, 0, Math.PI*2);
+        ctx.arc(e2.x, e2.y, cell*0.07, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      if (i === s.length - 1){
+        // Tail tip mark
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(x + cell*0.5, y + cell*0.5, cell*0.10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.restore();
   }
 
@@ -280,131 +489,16 @@ import {
     drawGrid();
 
     const cell = state.view.cellPx;
-
-    // apple
-    const appleColor = getComputedStyle(document.body).getPropertyValue('--apple').trim() || 'rgba(255, 90, 110, 0.95)';
-    ctx.save();
-    ctx.fillStyle = appleColor;
-    const ax = state.core.apple.x * cell;
-    const ay = state.core.apple.y * cell;
-    drawRoundedRect(ax + cell*0.12, ay + cell*0.12, cell*0.76, cell*0.76, cell*0.22);
-    ctx.fill();
-    ctx.restore();
-
-    // snake
-    const headColor = getComputedStyle(document.body).getPropertyValue('--snake-head').trim() || 'rgba(122,162,255,0.95)';
-    const bodyColor = getComputedStyle(document.body).getPropertyValue('--snake-body').trim() || 'rgba(122,162,255,0.70)';
-
-    ctx.save();
-    for (let i=0; i<state.core.snake.length; i++){
-      const s = state.core.snake[i];
-      const x = s.x * cell;
-      const y = s.y * cell;
-      const isHead = i === 0;
-      ctx.fillStyle = isHead ? headColor : bodyColor;
-      drawRoundedRect(x + cell*0.08, y + cell*0.08, cell*0.84, cell*0.84, cell*0.24);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    if (state.core.gameOver){
-      renderOverlay('游戏结束', '按 R 重开 / 点「重开」');
-    } else if (!state.core.running){
-      renderOverlay('暂停', '按 Space 继续 / 点「暂停」');
-    }
+    drawApple(cell);
+    drawSnake(cell);
   }
 
-  function finishRun(){
-    const runs = loadRuns();
-    runs.push({ score: state.core.score, t: Date.now() });
-    saveRuns(runs.slice(-50));
-    renderRuns();
-  }
+  // ----- event wiring -----
 
-  function doGameOver(){
-    if (state.core.gameOver) return;
-    state.core.gameOver = true;
-    state.core.running = false;
-
-    beep(130, 220, 'sawtooth', 0.06);
-    beep(90, 260, 'triangle', 0.05);
-    haptic([40, 30, 60]);
-
-    finishRun();
-  }
-
-  function doStep(){
-    const r = stepState(state.core);
-    state.core = r.state;
-
-    if (r.event === 'gameover_wall' || r.event === 'gameover_self'){
-      doGameOver();
-      return;
-    }
-
-    if (r.event === 'eat' || r.event === 'speedup'){
-      if (!state.core.apple) placeAppleForCore();
-
-      setScore(state.core.score);
-
-      if (r.event === 'eat'){
-        beep(660, 60, 'sine', 0.04);
-        haptic(20);
-      } else {
-        setSpeed(state.core.tickBase / state.core.tickMs);
-        beep(880, 80, 'triangle', 0.03);
-        haptic(30);
-      }
-    }
-  }
-
-  function loop(ts){
-    if (!state.lastTick) state.lastTick = ts;
-    const elapsed = ts - state.lastTick;
-
-    if (state.core.running && !state.core.gameOver && elapsed >= state.core.tickMs){
-      state.lastTick = ts;
-      doStep();
-    }
-
-    render();
-    requestAnimationFrame(loop);
-  }
-
-  function togglePause(){
-    if (state.core.gameOver) return;
-    state.core.running = !state.core.running;
-    btnPause.textContent = state.core.running ? '暂停 (Space)' : '继续 (Space)';
-  }
-
-  function setDirection(dx, dy){
-    const next = { x: dx, y: dy };
-    if (dx === 0 && dy === 0) return;
-    if (isOpposite(state.core.dir, next)) return;
-    state.core.nextDir = next;
-  }
-
-  function applyDifficulty(key){
-    const base = DIFFICULTY[key] ?? DIFFICULTY.normal;
-    state.core.tickBase = base;
-
-    // reset speed to base (friendlier + predictable)
-    state.core.tickMs = base;
-    setSpeed(state.core.tickBase / state.core.tickMs);
-  }
-
-  function requestFullscreen(){
-    const el = document.documentElement;
-    if (!document.fullscreenElement && el.requestFullscreen) {
-      el.requestFullscreen().catch(() => {});
-    }
-  }
-
-  // Settings UI
   difficultyEl.addEventListener('change', () => {
     applyDifficulty(difficultyEl.value);
     saveSettings({ difficulty: difficultyEl.value, theme: themeEl.value, sound: soundEl.checked });
-    reset();
+    resetToReady();
   });
 
   themeEl.addEventListener('change', () => {
@@ -415,36 +509,48 @@ import {
   soundEl.addEventListener('change', () => {
     state.audio.enabled = !!soundEl.checked;
     saveSettings({ difficulty: difficultyEl.value, theme: themeEl.value, sound: soundEl.checked });
-    if (state.audio.enabled) beep(520, 60, 'sine', 0.03);
+
+    // audible confirmation
+    if (state.audio.enabled){
+      ensureAudio();
+      beep(700, 80, 'sine', 0.09);
+      setTimeout(() => beep(950, 70, 'triangle', 0.08), 60);
+    }
+  });
+
+  btnStart.addEventListener('click', startGame);
+  btnRestartBig.addEventListener('click', () => {
+    resetToReady();
+    startGame();
   });
 
   // Keyboard
   window.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
+
+    if (!state.ui.started && (k === 'enter' || k === ' ')){
+      e.preventDefault();
+      startGame();
+      return;
+    }
+
     if (k === 'arrowup' || k === 'w') setDirection(0,-1);
     else if (k === 'arrowdown' || k === 's') setDirection(0,1);
     else if (k === 'arrowleft' || k === 'a') setDirection(-1,0);
     else if (k === 'arrowright' || k === 'd') setDirection(1,0);
-    else if (k === ' '){
-      e.preventDefault();
-      togglePause();
-    }
     else if (k === 'r'){
-      reset();
+      if (state.core.gameOver){
+        resetToReady();
+        startGame();
+      }
     }
   }, { passive: false });
-
-  // Buttons
-  btnPause.addEventListener('click', togglePause);
-  btnRestart.addEventListener('click', reset);
-  btnFullscreen?.addEventListener('click', requestFullscreen);
 
   // On-screen D-pad
   function bindPress(btn, dx, dy){
     const onPress = (e) => {
       e.preventDefault();
-      ensureAudio();
-      requestFullscreen();
+      if (!state.ui.started) startGame();
       setDirection(dx, dy);
     };
 
@@ -459,68 +565,65 @@ import {
     bindPress(btnRight, 1, 0);
   }
 
-  // Touch: swipe to move on canvas (and tap to pause)
+  // Swipe to move on canvas
+  let touchStart = null;
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
-    state.touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+    touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
   });
 
   canvas.addEventListener('pointerup', (e) => {
-    if (!state.touchStart) return;
-    const dx = e.clientX - state.touchStart.x;
-    const dy = e.clientY - state.touchStart.y;
+    if (!touchStart) return;
+    const dx = e.clientX - touchStart.x;
+    const dy = e.clientY - touchStart.y;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
 
-    // small tap toggles pause
     if (adx < state.ui.swipeMinPx && ady < state.ui.swipeMinPx){
-      togglePause();
-      state.touchStart = null;
+      touchStart = null;
       return;
     }
 
-    ensureAudio();
-    requestFullscreen();
+    if (!state.ui.started) startGame();
 
     if (adx > ady){
       setDirection(dx > 0 ? 1 : -1, 0);
     } else {
       setDirection(0, dy > 0 ? 1 : -1);
     }
-    state.touchStart = null;
+    touchStart = null;
   });
 
-  // Prevent page scroll/zoom gestures on the game area
+  // Prevent page scroll on game area
   for (const el of [canvas, dpadEl].filter(Boolean)){
     el.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     el.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
   }
 
-  // Resize handling
-  const ro = new ResizeObserver(() => {
-    computeCanvasSize();
-  });
+  // Resize
+  const ro = new ResizeObserver(() => computeCanvasSize());
   ro.observe(canvas);
   window.addEventListener('resize', computeCanvasSize);
 
-  // init
+  // ----- init -----
+
   bestEl.textContent = String(loadBest());
 
   const s = loadSettings();
   const initialDifficulty = s?.difficulty || 'normal';
-  const initialTheme = s?.theme || 'night';
+  const initialTheme = s?.theme || 'dark';
   const initialSound = s?.sound ?? true;
 
   difficultyEl.value = initialDifficulty;
-  themeEl.value = initialTheme;
+  themeEl.value = (initialTheme === 'light') ? 'light' : 'dark';
   soundEl.checked = !!initialSound;
   state.audio.enabled = !!initialSound;
 
   applyDifficulty(initialDifficulty);
-  applyTheme(initialTheme);
+  applyTheme(themeEl.value);
   renderRuns();
 
   computeCanvasSize();
-  reset();
+  resetToReady();
   requestAnimationFrame(loop);
 })();

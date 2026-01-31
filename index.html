@@ -9,7 +9,7 @@
   <body>
     <header>
       <h1>Yuki Games · 贪吃蛇</h1>
-      <div class="sub">方向键 / WASD；手机：滑动或用方向键按钮；空格暂停，R 重开</div>
+      <div class="sub">电脑：方向键/WASD｜手机：滑动或方向键按钮</div>
     </header>
 
     <main>
@@ -24,18 +24,9 @@
           <label>
             难度
             <select id="difficulty">
-              <option value="easy">Easy</option>
-              <option value="normal" selected>Normal</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
-
-          <label>
-            主题
-            <select id="theme">
-              <option value="night" selected>Night</option>
-              <option value="neon">Neon</option>
-              <option value="milk">Milk</option>
+              <option value="easy">简单</option>
+              <option value="normal" selected>普通</option>
+              <option value="hard">困难</option>
             </select>
           </label>
 
@@ -44,11 +35,26 @@
             音效
           </label>
 
-          <button id="btnFullscreen" type="button" class="btn-ghost">全屏</button>
+          <label>
+            主题
+            <select id="theme">
+              <option value="dark" selected>深色</option>
+              <option value="light">浅色</option>
+            </select>
+          </label>
         </div>
 
-        <div class="stage">
+        <div class="stage" aria-label="Game stage">
           <canvas id="game" aria-label="Snake game"></canvas>
+
+          <div id="overlay" class="overlay" aria-live="polite">
+            <div class="overlay-card">
+              <div id="overlayTitle" class="overlay-title">准备好了吗？</div>
+              <div id="overlaySub" class="overlay-sub">点一下开始，主银～</div>
+              <button id="btnStart" type="button" class="btn-primary">开始游戏</button>
+              <button id="btnRestartBig" type="button" class="btn-primary hidden">再来一局</button>
+            </div>
+          </div>
 
           <div id="dpad" class="dpad" aria-label="On-screen controls">
             <button id="btnUp" class="dpad-btn" type="button" aria-label="Up">▲</button>
@@ -56,11 +62,6 @@
             <button id="btnRight" class="dpad-btn" type="button" aria-label="Right">▶</button>
             <button id="btnDown" class="dpad-btn" type="button" aria-label="Down">▼</button>
           </div>
-        </div>
-
-        <div class="buttons">
-          <button id="btnPause" type="button">暂停 (Space)</button>
-          <button id="btnRestart" type="button">重开 (R)</button>
         </div>
 
         <section class="leaderboard" aria-label="Leaderboard">
