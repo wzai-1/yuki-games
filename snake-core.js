@@ -1,7 +1,7 @@
 // Core snake game logic (pure-ish, no DOM). Used by app.js and unit tests.
 
-// Slightly smaller grid for better mobile readability
-export const DEFAULT_GRID = 22;
+// Smaller grid for better mobile readability (and fewer edge artifacts on iOS)
+export const DEFAULT_GRID = 18;
 
 export const DIFFICULTY = {
   easy: 170,
@@ -112,11 +112,16 @@ export function createInitialState({
   tickBase = DIFFICULTY.normal,
   rng = Math.random,
 } = {}) {
+  // Place the initial snake relative to the grid size (works for smaller grids).
+  const y = Math.floor(grid / 2);
+  const x0 = Math.max(3, Math.floor(grid / 3));
+
   const snake = [
-    { x: 8, y: 12 },
-    { x: 7, y: 12 },
-    { x: 6, y: 12 },
+    { x: x0, y },
+    { x: x0 - 1, y },
+    { x: x0 - 2, y },
   ];
+
   const apple = placeApple(rng, snake, grid);
   return {
     grid,
