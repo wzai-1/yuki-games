@@ -213,20 +213,20 @@ body[data-theme="light"] .overlay-card{
 
 .dpad{
   display: none;
-  grid-template-columns: repeat(3, 60px);
-  grid-template-rows: repeat(3, 60px);
-  gap: 10px;
+  grid-template-columns: repeat(3, 50px);
+  grid-template-rows: repeat(3, 50px);
+  gap: 6px;
   align-items: center;
   justify-items: center;
   user-select: none;
 }
 
 .dpad-btn{
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   padding: 0;
-  font-size: 20px;
-  border-radius: 18px;
+  font-size: 18px;
+  border-radius: 16px;
 }
 
 #btnUp{ grid-column: 2; grid-row: 1; }
@@ -257,7 +257,6 @@ body[data-theme="light"] .leaderboard{
 #runs{ margin: 0; padding-left: 20px; }
 #runs li{ margin: 4px 0; }
 
-.leaderboard-hint{ margin-top: 8px; font-size: 12px; color: var(--muted); }
 
 details{ max-width: 560px; margin: 12px auto 0; color: var(--muted); }
 details summary{ cursor: pointer; }

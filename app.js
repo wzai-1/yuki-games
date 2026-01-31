@@ -209,7 +209,9 @@ import {
 
     const rect = canvas.getBoundingClientRect();
     const cssSize = Math.floor(Math.max(260, Math.min(rect.width || 480, 560)));
-    const pxSize = Math.floor(cssSize * dpr);
+    // Make the backing store size divisible by GRID to avoid off-by-one overdraw
+    let pxSize = Math.floor(cssSize * dpr);
+    pxSize = pxSize - (pxSize % GRID);
 
     canvas.width = pxSize;
     canvas.height = pxSize;
