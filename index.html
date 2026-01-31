@@ -9,7 +9,7 @@
   <body>
     <header>
       <h1>Yuki Games · 贪吃蛇</h1>
-      <div class="sub">方向键 / WASD 移动，空格暂停，R 重开</div>
+      <div class="sub">方向键 / WASD 移动，空格暂停，R 重开；手机端：滑动控制，轻点暂停</div>
     </header>
 
     <main>
@@ -20,6 +20,31 @@
           <div>速度：<span id="speed">1.0x</span></div>
         </div>
 
+        <div class="controls" aria-label="Game settings">
+          <label>
+            难度
+            <select id="difficulty">
+              <option value="easy">Easy</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+
+          <label>
+            主题
+            <select id="theme">
+              <option value="night" selected>Night</option>
+              <option value="neon">Neon</option>
+              <option value="milk">Milk</option>
+            </select>
+          </label>
+
+          <label class="toggle">
+            <input id="sound" type="checkbox" checked />
+            音效
+          </label>
+        </div>
+
         <canvas id="game" width="480" height="480" aria-label="Snake game"></canvas>
 
         <div class="buttons">
@@ -27,11 +52,17 @@
           <button id="btnRestart" type="button">重开 (R)</button>
         </div>
 
+        <section class="leaderboard" aria-label="Leaderboard">
+          <div class="leaderboard-title">本机排行榜（Top 5）</div>
+          <ol id="runs"></ol>
+          <div class="leaderboard-hint">提示：排行榜保存在你的浏览器本地（localStorage）</div>
+        </section>
+
         <details>
           <summary>玩法说明</summary>
           <ul>
             <li>吃到 🍎 会加分并变长；每吃 5 个会略微加速。</li>
-            <li>撞墙或撞到自己则结束。</li>
+            <li>撞墙或撞到自己则 <strong>Game Over</strong>。</li>
             <li>支持方向键、WASD；手机端可滑动控制。</li>
           </ul>
         </details>
