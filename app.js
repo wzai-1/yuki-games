@@ -1,3 +1,13 @@
+import {
+  DEFAULT_GRID,
+  DIFFICULTY,
+  isOpposite,
+  sameCell,
+  placeApple,
+  createInitialState,
+  stepState,
+} from './snake-core.js';
+
 (() => {
   'use strict';
 
@@ -15,33 +25,23 @@
   const soundEl = document.getElementById('sound');
   const runsEl = document.getElementById('runs');
 
-  const GRID = 24;            // 24x24 cells
-  const CELL = canvas.width / GRID;
+  // On-screen controls (mobile)
+  const dpadEl = document.getElementById('dpad');
+  const btnUp = document.getElementById('btnUp');
+  const btnDown = document.getElementById('btnDown');
+  const btnLeft = document.getElementById('btnLeft');
+  const btnRight = document.getElementById('btnRight');
+
+  const btnFullscreen = document.getElementById('btnFullscreen');
+
+  const GRID = DEFAULT_GRID;
 
   const BEST_KEY = 'yuki-snake-best';
   const RUNS_KEY = 'yuki-snake-runs';
   const SETTINGS_KEY = 'yuki-snake-settings';
 
-  const DIFFICULTY = {
-    easy: 170,
-    normal: 140,
-    hard: 110,
-  };
-
   const state = {
-    running: true,
-    gameOver: false,
-
-    tickMs: 140,
-    tickBase: 140,
-
-    snake: [],
-    dir: { x: 1, y: 0 },
-    nextDir: { x: 1, y: 0 },
-    apple: { x: 10, y: 10 },
-
-    score: 0,
-    eaten: 0,
+    core: createInitialState({ grid: GRID, tickBase: DIFFICULTY.normal }),
 
     lastTick: 0,
     touchStart: null,
@@ -50,10 +50,19 @@
       enabled: true,
       ctx: null,
     },
-  };
 
-  function same(a, b){ return a.x === b.x && a.y === b.y; }
-  function isOpposite(a, b){ return a.x === -b.x && a.y === -b.y; }
+    ui: {
+      // used for swipe sensitivity
+      swipeMinPx: 18,
+    },
+
+    // Canvas scaling
+    view: {
+      cssSize: 480,
+      dpr: 1,
+      cellPx: 20,
+    },
+  };
 
   function loadBest(){
     const v = Number(localStorage.getItem(BEST_KEY) || '0');
@@ -102,7 +111,7 @@
   }
 
   function setScore(v){
-    state.score = v;
+    state.core.score = v;
     scoreEl.textContent = String(v);
 
     const best = loadBest();
@@ -151,7 +160,6 @@
     const ac = ensureAudio();
     if (!ac) return;
 
-    // iOS may require resume on gesture; best-effort.
     if (ac.state === 'suspended') ac.resume().catch(() => {});
 
     const o = ac.createOscillator();
@@ -172,38 +180,45 @@
     o.stop(t0 + ms/1000);
   }
 
-  function placeApple(){
-    while (true){
-      const x = Math.floor(Math.random() * GRID);
-      const y = Math.floor(Math.random() * GRID);
-      if (!state.snake.some(s => s.x === x && s.y === y)){
-        state.apple = { x, y };
-        return;
-      }
+  function haptic(pattern){
+    // Nice-to-have, non-blocking.
+    if (navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch {}
     }
   }
 
+  function placeAppleForCore(){
+    state.core.apple = placeApple(Math.random, state.core.snake, state.core.grid);
+  }
+
   function reset(){
-    state.gameOver = false;
-    state.running = true;
-
-    state.tickMs = state.tickBase;
-
-    state.dir = { x: 1, y: 0 };
-    state.nextDir = { x: 1, y: 0 };
-
-    state.snake = [
-      { x: 8, y: 12 },
-      { x: 7, y: 12 },
-      { x: 6, y: 12 },
-    ];
-
-    state.eaten = 0;
-    placeApple();
+    const { grid } = state.core;
+    const tickBase = state.core.tickBase;
+    state.core = createInitialState({ grid, tickBase });
     setScore(0);
-    setSpeed(state.tickBase / state.tickMs);
-
+    setSpeed(state.core.tickBase / state.core.tickMs);
     btnPause.textContent = '暂停 (Space)';
+  }
+
+  function computeCanvasSize(){
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+
+    // canvas container width based sizing
+    const rect = canvas.getBoundingClientRect();
+    // Ensure square canvas. Use the smallest of width/height available.
+    const cssSize = Math.floor(Math.max(260, Math.min(rect.width || 480, 560)));
+
+    const pxSize = Math.floor(cssSize * dpr);
+
+    canvas.width = pxSize;
+    canvas.height = pxSize;
+
+    state.view.cssSize = cssSize;
+    state.view.dpr = dpr;
+    state.view.cellPx = pxSize / GRID;
+
+    // important: scale drawing units to physical pixels
+    ctx.setTransform(1,0,0,1,0,0);
   }
 
   function drawGrid(){
@@ -211,14 +226,19 @@
     ctx.save();
     ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
+
+    const cell = state.view.cellPx;
+    const size = canvas.width;
+
     for (let i=0; i<=GRID; i++){
+      const p = i * cell;
       ctx.beginPath();
-      ctx.moveTo(i*CELL, 0);
-      ctx.lineTo(i*CELL, canvas.height);
+      ctx.moveTo(p, 0);
+      ctx.lineTo(p, size);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(0, i*CELL);
-      ctx.lineTo(canvas.width, i*CELL);
+      ctx.moveTo(0, p);
+      ctx.lineTo(size, p);
       ctx.stroke();
     }
     ctx.restore();
@@ -240,9 +260,9 @@
     ctx.fillRect(0,0,canvas.width, canvas.height);
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
     ctx.textAlign = 'center';
-    ctx.font = '800 26px system-ui, sans-serif';
+    ctx.font = `800 ${Math.floor(canvas.width * 0.06)}px system-ui, sans-serif`;
     ctx.fillText(textMain, canvas.width/2, canvas.height/2 - 10);
-    ctx.font = '500 14px system-ui, sans-serif';
+    ctx.font = `500 ${Math.floor(canvas.width * 0.032)}px system-ui, sans-serif`;
     ctx.fillText(textSub, canvas.width/2, canvas.height/2 + 18);
     ctx.restore();
   }
@@ -259,13 +279,15 @@
 
     drawGrid();
 
+    const cell = state.view.cellPx;
+
     // apple
     const appleColor = getComputedStyle(document.body).getPropertyValue('--apple').trim() || 'rgba(255, 90, 110, 0.95)';
     ctx.save();
     ctx.fillStyle = appleColor;
-    const ax = state.apple.x * CELL;
-    const ay = state.apple.y * CELL;
-    drawRoundedRect(ax+3, ay+3, CELL-6, CELL-6, 8);
+    const ax = state.core.apple.x * cell;
+    const ay = state.core.apple.y * cell;
+    drawRoundedRect(ax + cell*0.12, ay + cell*0.12, cell*0.76, cell*0.76, cell*0.22);
     ctx.fill();
     ctx.restore();
 
@@ -274,81 +296,65 @@
     const bodyColor = getComputedStyle(document.body).getPropertyValue('--snake-body').trim() || 'rgba(122,162,255,0.70)';
 
     ctx.save();
-    for (let i=0; i<state.snake.length; i++){
-      const s = state.snake[i];
-      const x = s.x * CELL;
-      const y = s.y * CELL;
+    for (let i=0; i<state.core.snake.length; i++){
+      const s = state.core.snake[i];
+      const x = s.x * cell;
+      const y = s.y * cell;
       const isHead = i === 0;
       ctx.fillStyle = isHead ? headColor : bodyColor;
-      drawRoundedRect(x+2, y+2, CELL-4, CELL-4, 10);
+      drawRoundedRect(x + cell*0.08, y + cell*0.08, cell*0.84, cell*0.84, cell*0.24);
       ctx.fill();
     }
     ctx.restore();
 
-    if (state.gameOver){
-      renderOverlay('游戏结束', '按 R 重开');
-    } else if (!state.running){
-      renderOverlay('暂停', '按 Space 继续');
+    if (state.core.gameOver){
+      renderOverlay('游戏结束', '按 R 重开 / 点「重开」');
+    } else if (!state.core.running){
+      renderOverlay('暂停', '按 Space 继续 / 点「暂停」');
     }
   }
 
   function finishRun(){
     const runs = loadRuns();
-    runs.push({ score: state.score, t: Date.now() });
+    runs.push({ score: state.core.score, t: Date.now() });
     saveRuns(runs.slice(-50));
     renderRuns();
   }
 
-  function gameOver(){
-    if (state.gameOver) return;
-    state.gameOver = true;
-    state.running = false;
-    btnPause.textContent = '暂停 (Space)';
+  function doGameOver(){
+    if (state.core.gameOver) return;
+    state.core.gameOver = true;
+    state.core.running = false;
 
     beep(130, 220, 'sawtooth', 0.06);
     beep(90, 260, 'triangle', 0.05);
+    haptic([40, 30, 60]);
 
     finishRun();
   }
 
-  function step(){
-    // Apply next direction (disallow reversing)
-    if (!isOpposite(state.dir, state.nextDir)){
-      state.dir = { ...state.nextDir };
+  function doStep(){
+    const r = stepState(state.core);
+    state.core = r.state;
+
+    if (r.event === 'gameover_wall' || r.event === 'gameover_self'){
+      doGameOver();
+      return;
     }
 
-    const head = state.snake[0];
-    const newHead = { x: head.x + state.dir.x, y: head.y + state.dir.y };
+    if (r.event === 'eat' || r.event === 'speedup'){
+      if (!state.core.apple) placeAppleForCore();
 
-    // wall collision
-    if (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID){
-      return gameOver();
-    }
+      setScore(state.core.score);
 
-    // Important: when NOT growing, moving into the cell where the tail currently is should be allowed
-    // because the tail will move away this tick.
-    const willGrow = same(newHead, state.apple);
-    const bodyToCheck = willGrow ? state.snake : state.snake.slice(0, -1);
-    if (bodyToCheck.some(seg => seg.x === newHead.x && seg.y === newHead.y)){
-      return gameOver();
-    }
-
-    state.snake.unshift(newHead);
-
-    if (willGrow){
-      state.eaten++;
-      setScore(state.score + 10);
-      beep(660, 60, 'sine', 0.04);
-      placeApple();
-
-      // every 5 apples -> speed up a bit
-      if (state.eaten % 5 === 0){
-        state.tickMs = Math.max(70, Math.floor(state.tickMs * 0.90));
-        setSpeed(state.tickBase / state.tickMs);
+      if (r.event === 'eat'){
+        beep(660, 60, 'sine', 0.04);
+        haptic(20);
+      } else {
+        setSpeed(state.core.tickBase / state.core.tickMs);
         beep(880, 80, 'triangle', 0.03);
+        haptic(30);
       }
-    } else {
-      state.snake.pop();
     }
   }
 
@@ -356,9 +362,9 @@
     if (!state.lastTick) state.lastTick = ts;
     const elapsed = ts - state.lastTick;
 
-    if (state.running && !state.gameOver && elapsed >= state.tickMs){
+    if (state.core.running && !state.core.gameOver && elapsed >= state.core.tickMs){
       state.lastTick = ts;
-      step();
+      doStep();
     }
 
     render();
@@ -366,26 +372,31 @@
   }
 
   function togglePause(){
-    if (state.gameOver) return; // game over: use R to restart
-    state.running = !state.running;
-    btnPause.textContent = state.running ? '暂停 (Space)' : '继续 (Space)';
+    if (state.core.gameOver) return;
+    state.core.running = !state.core.running;
+    btnPause.textContent = state.core.running ? '暂停 (Space)' : '继续 (Space)';
   }
 
   function setDirection(dx, dy){
     const next = { x: dx, y: dy };
     if (dx === 0 && dy === 0) return;
-    if (isOpposite(state.dir, next)) return;
-    state.nextDir = next;
+    if (isOpposite(state.core.dir, next)) return;
+    state.core.nextDir = next;
   }
 
   function applyDifficulty(key){
     const base = DIFFICULTY[key] ?? DIFFICULTY.normal;
-    state.tickBase = base;
-    if (!state.gameOver){
-      // Keep current speed ratio but adjust relative to base
-      const mult = state.tickBase / state.tickMs;
-      state.tickMs = Math.max(70, Math.floor(state.tickBase / Math.max(1, mult)));
-      setSpeed(state.tickBase / state.tickMs);
+    state.core.tickBase = base;
+
+    // reset speed to base (friendlier + predictable)
+    state.core.tickMs = base;
+    setSpeed(state.core.tickBase / state.core.tickMs);
+  }
+
+  function requestFullscreen(){
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
     }
   }
 
@@ -421,13 +432,34 @@
     else if (k === 'r'){
       reset();
     }
-  });
+  }, { passive: false });
 
   // Buttons
   btnPause.addEventListener('click', togglePause);
   btnRestart.addEventListener('click', reset);
+  btnFullscreen?.addEventListener('click', requestFullscreen);
 
-  // Touch: swipe to move
+  // On-screen D-pad
+  function bindPress(btn, dx, dy){
+    const onPress = (e) => {
+      e.preventDefault();
+      ensureAudio();
+      requestFullscreen();
+      setDirection(dx, dy);
+    };
+
+    btn.addEventListener('pointerdown', onPress, { passive: false });
+    btn.addEventListener('touchstart', onPress, { passive: false });
+  }
+
+  if (btnUp && btnDown && btnLeft && btnRight){
+    bindPress(btnUp, 0, -1);
+    bindPress(btnDown, 0, 1);
+    bindPress(btnLeft, -1, 0);
+    bindPress(btnRight, 1, 0);
+  }
+
+  // Touch: swipe to move on canvas (and tap to pause)
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
     state.touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -440,12 +472,15 @@
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
 
-    // small tap toggles pause (but not during game over)
-    if (adx < 18 && ady < 18){
+    // small tap toggles pause
+    if (adx < state.ui.swipeMinPx && ady < state.ui.swipeMinPx){
       togglePause();
       state.touchStart = null;
       return;
     }
+
+    ensureAudio();
+    requestFullscreen();
 
     if (adx > ady){
       setDirection(dx > 0 ? 1 : -1, 0);
@@ -454,6 +489,19 @@
     }
     state.touchStart = null;
   });
+
+  // Prevent page scroll/zoom gestures on the game area
+  for (const el of [canvas, dpadEl].filter(Boolean)){
+    el.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    el.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  }
+
+  // Resize handling
+  const ro = new ResizeObserver(() => {
+    computeCanvasSize();
+  });
+  ro.observe(canvas);
+  window.addEventListener('resize', computeCanvasSize);
 
   // init
   bestEl.textContent = String(loadBest());
@@ -472,6 +520,7 @@
   applyTheme(initialTheme);
   renderRuns();
 
+  computeCanvasSize();
   reset();
   requestAnimationFrame(loop);
 })();
