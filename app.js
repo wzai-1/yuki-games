@@ -30,13 +30,6 @@ import {
   const btnStart = document.getElementById('btnStart');
   const btnRestartBig = document.getElementById('btnRestartBig');
 
-  // On-screen controls (mobile)
-  const dpadEl = document.getElementById('dpad');
-  const btnUp = document.getElementById('btnUp');
-  const btnDown = document.getElementById('btnDown');
-  const btnLeft = document.getElementById('btnLeft');
-  const btnRight = document.getElementById('btnRight');
-
   const GRID = DEFAULT_GRID;
 
   const BEST_KEY = 'yuki-snake-best';
@@ -94,7 +87,7 @@ import {
     const runs = loadRuns()
       .slice()
       .sort((a,b) => (b.score - a.score) || (a.t - b.t))
-      .slice(0, 5);
+      .slice(0, 3);
 
     runsEl.innerHTML = '';
     if (runs.length === 0){
@@ -557,28 +550,7 @@ import {
         startGame();
       }
     }
-  }, { passive: false });
-
-  // On-screen D-pad
-  function bindPress(btn, dx, dy){
-    const onPress = (e) => {
-      e.preventDefault();
-      if (!state.ui.started) startGame();
-      setDirection(dx, dy);
-    };
-
-    btn.addEventListener('pointerdown', onPress, { passive: false });
-    btn.addEventListener('touchstart', onPress, { passive: false });
-  }
-
-  if (btnUp && btnDown && btnLeft && btnRight){
-    bindPress(btnUp, 0, -1);
-    bindPress(btnDown, 0, 1);
-    bindPress(btnLeft, -1, 0);
-    bindPress(btnRight, 1, 0);
-  }
-
-  // Swipe to move on canvas
+  }, { passive: false });  // Swipe to move on canvas
   let touchStart = null;
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
@@ -608,7 +580,7 @@ import {
   });
 
   // Prevent page scroll on game area
-  for (const el of [canvas, dpadEl].filter(Boolean)){
+  for (const el of [canvas].filter(Boolean)){
     el.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     el.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
   }
