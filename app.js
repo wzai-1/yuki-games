@@ -355,17 +355,21 @@ import {
     const cell = state.view.cellPx;
     const size = canvas.width;
 
-    for (let i=0; i<=GRID; i++){
-      const p = i * cell;
+    // Draw only interior lines. The outer border is handled by CSS (.canvas-wrap).
+    // Also align to half-pixel to reduce anti-aliased “spill” on iOS Chrome.
+    for (let i = 1; i < GRID; i++){
+      const p = Math.floor(i * cell) + 0.5;
       ctx.beginPath();
-      ctx.moveTo(p, 0);
-      ctx.lineTo(p, size);
+      ctx.moveTo(p, 0.5);
+      ctx.lineTo(p, size - 0.5);
       ctx.stroke();
+
       ctx.beginPath();
-      ctx.moveTo(0, p);
-      ctx.lineTo(size, p);
+      ctx.moveTo(0.5, p);
+      ctx.lineTo(size - 0.5, p);
       ctx.stroke();
     }
+
     ctx.restore();
   }
 
