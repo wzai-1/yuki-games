@@ -11,6 +11,7 @@ import {
   'use strict';
 
   const canvas = document.getElementById('game');
+  const canvasWrap = document.getElementById('canvasWrap');
   const ctx = canvas.getContext('2d');
 
   const scoreEl = document.getElementById('score');
@@ -207,7 +208,7 @@ import {
   function computeCanvasSize(){
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-    const rect = canvas.getBoundingClientRect();
+    const rect = (canvasWrap || canvas).getBoundingClientRect();
     const cssSize = Math.floor(Math.max(260, Math.min(rect.width || 480, 560)));
     // Make the backing store size divisible by GRID to avoid off-by-one overdraw
     let pxSize = Math.floor(cssSize * dpr);
@@ -610,7 +611,7 @@ import {
 
   // Resize
   const ro = new ResizeObserver(() => computeCanvasSize());
-  ro.observe(canvas);
+  ro.observe(canvasWrap || canvas);
   window.addEventListener('resize', computeCanvasSize);
 
   // ----- init -----

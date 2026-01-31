@@ -45,7 +45,9 @@
         </div>
 
         <div class="stage" aria-label="Game stage">
-          <canvas id="game" aria-label="Snake game"></canvas>
+          <div id="canvasWrap" class="canvas-wrap" aria-label="Game canvas frame">
+            <canvas id="game" aria-label="Snake game"></canvas>
+          </div>
 
           <div id="overlay" class="overlay" aria-live="polite">
             <div class="overlay-card">
