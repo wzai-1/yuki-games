@@ -48,6 +48,7 @@ import {
 
     ui: {
       started: false,
+      gameOverHandled: false,
       swipeMinPx: 18,
     },
 
@@ -239,9 +240,11 @@ import {
     setScore(0);
     setSpeed(state.core.tickBase / state.core.tickMs);
 
+    state.ui.gameOverHandled = false;
+
     showOverlay({
       title: '准备好了吗？',
-      sub: '点一下开始，主银～',
+      sub: '点一下开始',
       showStart: true,
       showRestart: false,
     });
@@ -252,6 +255,7 @@ import {
     beep(520, 70, 'sine', 0.08);
 
     state.ui.started = true;
+    state.ui.gameOverHandled = false;
     state.core.running = true;
     state.core.gameOver = false;
 
@@ -266,7 +270,9 @@ import {
   }
 
   function doGameOver(reason){
-    if (state.core.gameOver) return;
+    if (state.ui.gameOverHandled) return;
+    state.ui.gameOverHandled = true;
+
     state.core.gameOver = true;
     state.core.running = false;
 

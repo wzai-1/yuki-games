@@ -179,6 +179,7 @@ body[data-theme="light"] canvas{
   inset: 0;
   display: grid;
   place-items: center;
+  z-index: 10;
   pointer-events: none;
 }
 

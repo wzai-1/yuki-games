@@ -1,6 +1,7 @@
 // Core snake game logic (pure-ish, no DOM). Used by app.js and unit tests.
 
-export const DEFAULT_GRID = 24;
+// Slightly smaller grid for better mobile readability
+export const DEFAULT_GRID = 22;
 
 export const DIFFICULTY = {
   easy: 170,
