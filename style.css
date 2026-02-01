@@ -65,14 +65,10 @@ main{
 
 .panel{
   background: var(--panel);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 0;
   border-radius: 16px;
   padding: 16px;
   backdrop-filter: blur(10px);
-}
-
-body[data-theme="light"] .panel{
-  border-color: rgba(0,0,0,0.10);
 }
 
 .stats{
@@ -217,7 +213,9 @@ body[data-theme="light"] .overlay-card{
   color: var(--muted);
   font-size: 14px;
   margin-bottom: 12px;
+  min-height: 0;
 }
+.overlay-sub:empty{ display:none; }
 
 .leaderboard{
   max-width: 560px;

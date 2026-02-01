@@ -9,13 +9,13 @@
   <body>
     <header>
       <h1>Yuki Games · 贪吃蛇</h1>
-      <div class="sub">电脑：方向键/WASD｜手机：滑动控制</div>
     </header>
 
     <main>
       <section class="panel">
         <details open>
           <summary>玩法说明</summary>
+          <div class="sub">电脑：方向键/WASD｜手机：滑动控制</div>
           <ul>
             <li>吃到 🍎 会加分并变长；每吃 5 个会略微加速。</li>
             <li>撞墙或撞到自己则 <strong>Game Over</strong>。</li>
@@ -61,7 +61,7 @@
           <div id="overlay" class="overlay" aria-live="polite">
             <div class="overlay-card">
               <div id="overlayTitle" class="overlay-title">准备好了吗？</div>
-              <div id="overlaySub" class="overlay-sub">点一下开始</div>
+              <div id="overlaySub" class="overlay-sub"></div>
               <button id="btnStart" type="button" class="btn-primary">开始游戏</button>
               <button id="btnRestartBig" type="button" class="btn-primary hidden">再来一局</button>
             </div>
