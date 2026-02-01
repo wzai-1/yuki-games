@@ -156,16 +156,17 @@ body[data-theme="light"] .btn-primary{
 .canvas-wrap{
   width: min(560px, 92vw);
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  /* Remove any visible frame around the canvas */
+  border-radius: 0;
   border: 0;
   box-shadow: none;
-  overflow: hidden; /* clip canvas content */
-  background: rgba(0,0,0,0.2);
+  overflow: hidden;
+  background: transparent;
 }
 
 body[data-theme="light"] .canvas-wrap{
   box-shadow: none;
-  background: rgba(255,255,255,0.65);
+  background: transparent;
 }
 
 canvas{
