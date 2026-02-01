@@ -13,6 +13,11 @@ body {
   margin: 0;
 }
 
+/* Reduce mobile tap/focus highlights (can show as blue selection boxes on iOS Chrome). */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Prevent iOS text zoom quirks */
 html {
   -webkit-text-size-adjust: 100%;
