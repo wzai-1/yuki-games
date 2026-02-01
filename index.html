@@ -1,85 +1,12 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Yuki Games · 贪吃蛇</title>
-    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <h1>Yuki Games · 贪吃蛇</h1>
-    </header>
-
-    <main>
-      <section class="panel">
-        <details open>
-          <summary>玩法说明</summary>
-          <div class="sub">电脑：方向键/WASD｜手机：滑动控制</div>
-          <ul>
-            <li>吃到 🍎 会加分并变长；每吃 5 个会略微加速。</li>
-            <li>撞墙或撞到自己则 <strong>Game Over</strong>。</li>
-            <li>手机：在画布上滑动控制方向。</li>
-          </ul>
-        </details>
-
-        <div class="stats">
-          <div>分数：<span id="score">0</span></div>
-          <div>最高：<span id="best">0</span></div>
-          <div>速度：<span id="speed">1.0x</span></div>
-        </div>
-
-        <div class="controls" aria-label="Game settings">
-          <label>
-            难度
-            <select id="difficulty">
-              <option value="easy">简单</option>
-              <option value="normal" selected>普通</option>
-              <option value="hard">困难</option>
-            </select>
-          </label>
-
-          <label class="toggle">
-            <input id="sound" type="checkbox" checked />
-            音效
-          </label>
-
-          <label>
-            主题
-            <select id="theme">
-              <option value="dark" selected>深色</option>
-              <option value="light">浅色</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="stage" aria-label="Game stage">
-          <div id="canvasWrap" class="canvas-wrap" aria-label="Game canvas frame">
-            <canvas id="game" aria-label="Snake game"></canvas>
-          </div>
-
-          <div id="overlay" class="overlay" aria-live="polite">
-            <div class="overlay-card">
-              <div id="overlayTitle" class="overlay-title">准备好了吗？</div>
-              <div id="overlaySub" class="overlay-sub"></div>
-              <button id="btnStart" type="button" class="btn-primary">开始游戏</button>
-              <button id="btnRestartBig" type="button" class="btn-primary hidden">再来一局</button>
-            </div>
-          </div>
-
-        </div>
-
-        <section class="leaderboard" aria-label="Leaderboard">
-          <div class="leaderboard-title">本机排行榜（Top 3）</div>
-          <ol id="runs"></ol>
-        </section>
-      </section>
-    </main>
-
-    <footer>
-      <a href="https://github.com/wzai-1/yuki-games" target="_blank" rel="noreferrer">GitHub Repo</a>
-    </footer>
-
-    <script type="module" src="app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+/* Prevent iOS text zoom quirks */
+html {
+  -webkit-text-size-adjust: 100%;
+}
