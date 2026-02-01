@@ -25,6 +25,8 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal')
   const [wrapWalls, setWrapWalls] = useState(false)
   const [sound, setSound] = useState(false)
+  const soundRef = useRef(false)
+  useEffect(() => { soundRef.current = sound }, [sound])
   const [showHelp, setShowHelp] = useState(false) // default collapsed
 
   const config = useMemo(
@@ -65,14 +67,14 @@ export default function App() {
       setState((s) => {
         const r = stepWithEvent(s)
         if (r.event === 'eat') {
-          if (sound) {
+          if (soundRef.current) {
             primeAudio()
             playSfx('eat')
           }
           haptic(10)
         }
         if (r.event === 'gameover_self' || r.event === 'gameover_wall') {
-          if (sound) {
+          if (soundRef.current) {
             primeAudio()
             playSfx('gameover')
           }
@@ -104,10 +106,38 @@ export default function App() {
   useKeyboardInput(onDir, togglePause)
   useSwipeOnElement(boardRef.current, onDir, true)
 
+  useEffect(() => {
+    const onAnyGesture = () => {
+      if (soundRef.current) primeAudio()
+    }
+    window.addEventListener('pointerdown', onAnyGesture)
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && soundRef.current) primeAudio()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      window.removeEventListener('pointerdown', onAnyGesture)
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [])
+
+  const unlockAudio = useCallback(() => {
+    // Must be triggered by a user gesture on mobile browsers
+    try {
+      primeAudio()
+      playSfx('start')
+    } catch {}
+  }, [])
+
+  const setSoundEnabled = useCallback((v: boolean) => {
+    setSound(v)
+    if (v) unlockAudio()
+  }, [unlockAudio])
+
   const restartAndStart = useCallback(() => {
-    if (sound) { primeAudio(); playSfx('start') }
+    if (soundRef.current) unlockAudio()
     setState(() => start(createInitialState(config)))
-  }, [config, sound])
+  }, [config, unlockAudio])
 
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
@@ -130,7 +160,7 @@ export default function App() {
               <button
                 type="button"
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
-                onClick={() => { if (sound) { primeAudio(); playSfx('start') } ; setState((s) => start(s)) }}
+                onClick={() => { if (soundRef.current) unlockAudio(); setState((s) => start(s)) }}
               >
                 开始
               </button>
@@ -185,7 +215,7 @@ export default function App() {
               overlay={
                 state.status === 'ready' ? (
                   <div className="w-full max-w-[420px] rounded-2xl bg-slate-950/80 p-4 text-center ring-1 ring-white/15 backdrop-blur">
-                    <div className="text-sm font-semibold">准备出发！</div>
+                    <div className="text-sm font-semibold">准备好了吗？</div>
                     <div className="mt-1 text-xs leading-5 text-slate-300">
                       点 <span className="text-emerald-200">开始</span> 开局。键盘用方向键/WASD；手机直接滑动。
                     </div>
@@ -193,7 +223,7 @@ export default function App() {
                       <button
                         type="button"
                         className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
-                        onClick={() => { if (sound) { primeAudio(); playSfx('start') } ; setState((s) => start(s)) }}
+                        onClick={() => { if (soundRef.current) unlockAudio(); setState((s) => start(s)) }}
                       >
                         开始
                       </button>
@@ -241,7 +271,7 @@ export default function App() {
               <Row label="设置">
                 <div className="flex flex-wrap items-center gap-3">
                   <Toggle checked={wrapWalls} onChange={setWrapWalls} label="穿墙" />
-                  <Toggle checked={sound} onChange={setSound} label="音效" />
+                  <Toggle checked={sound} onChange={setSoundEnabled} label="音效" />
                 </div>
               </Row>
 
