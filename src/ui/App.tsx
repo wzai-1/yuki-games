@@ -84,8 +84,8 @@ export default function App() {
   useKeyboardInput(onDir, togglePause)
   useSwipeInput(onDir)
 
-  const onRestart = useCallback(() => {
-    setState(() => createInitialState(config))
+  const restartAndStart = useCallback(() => {
+    setState(() => start(createInitialState(config)))
   }, [config])
 
   useEffect(() => {
@@ -144,7 +144,7 @@ export default function App() {
               <button
                 type="button"
                 className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
-                onClick={onRestart}
+                onClick={restartAndStart}
               >
                 重来
               </button>
@@ -164,7 +164,49 @@ export default function App() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_280px]">
           <div className="flex flex-col items-center">
-            <SnakeCanvas state={state} />
+            <SnakeCanvas
+              state={state}
+              overlay={
+                state.status === 'ready' ? (
+                  <div className="w-full max-w-[420px] rounded-2xl bg-slate-950/80 p-4 text-center ring-1 ring-white/15 backdrop-blur">
+                    <div className="text-sm font-semibold">准备出发！</div>
+                    <div className="mt-1 text-xs leading-5 text-slate-300">
+                      点 <span className="text-emerald-200">开始</span> 开局。键盘用方向键/WASD；手机直接滑动。
+                    </div>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
+                        onClick={() => setState((s) => start(s))}
+                      >
+                        开始
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+                        onClick={() => setShowHelp(true)}
+                      >
+                        玩法说明
+                      </button>
+                    </div>
+                  </div>
+                ) : state.status === 'dead' ? (
+                  <div className="w-full max-w-[420px] rounded-2xl bg-slate-950/80 p-4 text-center ring-1 ring-white/15 backdrop-blur">
+                    <div className="text-sm font-semibold">哎呀，撞上啦！</div>
+                    <div className="mt-1 text-xs text-slate-300">本局 {state.score} 分 · 最高 {best} 分</div>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
+                        onClick={restartAndStart}
+                      >
+                        再来一局
+                      </button>
+                    </div>
+                  </div>
+                ) : null
+              }
+            />
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <ScorePill label="分数" value={state.score} />
               <ScorePill label="最高" value={best} />            </div>
@@ -188,70 +230,10 @@ export default function App() {
               </Row>
 
               <div className="rounded-lg bg-black/20 p-2 text-[11px] text-slate-300">
-                小贴士：开始时随便滑一下/按一下方向键就会动～
+                小贴士：先选好难度/设置，再点开始～
               </div>
             </div>
           </aside>
-        </div>
-
-        <OverlayModal
-          open={state.status === 'ready'}
-          title="准备好了吗？"
-          body="按下开始，或者用方向键/WASD 先选方向再开始。手机也可以滑动（不会立刻开局）。"
-          primaryLabel="开始"
-          onPrimary={() => setState((s) => start(s))}
-          secondaryLabel="玩法说明"
-          onSecondary={() => setShowHelp(true)}
-        />
-
-        <OverlayModal
-          open={state.status === 'dead'}
-          title="游戏结束"
-          body="想再来一局吗？"
-          primaryLabel="重来"
-          onPrimary={onRestart}
-        />
-      </div>
-    </div>
-  )
-}
-
-function OverlayModal(props: {
-  open: boolean
-  title: string
-  body?: string
-  primaryLabel: string
-  onPrimary: () => void
-  secondaryLabel?: string
-  onSecondary?: () => void
-}) {
-  if (!props.open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm rounded-2xl bg-slate-950/95 p-4 ring-1 ring-white/15">
-        <div className="text-sm font-semibold">{props.title}</div>
-        {props.body ? (
-          <div className="mt-2 text-xs leading-5 text-slate-300">{props.body}</div>
-        ) : null}
-
-        <div className="mt-4 flex items-center justify-end gap-2">
-          {props.secondaryLabel && props.onSecondary ? (
-            <button
-              type="button"
-              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
-              onClick={props.onSecondary}
-            >
-              {props.secondaryLabel}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
-            onClick={props.onPrimary}
-          >
-            {props.primaryLabel}
-          </button>
         </div>
       </div>
     </div>

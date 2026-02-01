@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { GameState } from '../game/core'
 import { computeCanvasSizing, draw } from '../game/render'
 
 export default function SnakeCanvas(props: {
   state: GameState
+  overlay?: ReactNode
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -68,6 +69,9 @@ export default function SnakeCanvas(props: {
       className="relative overflow-hidden rounded-xl bg-slate-900/40 ring-1 ring-white/10"
     >
       <canvas ref={canvasRef} className="block touch-none select-none" />
+      {props.overlay ? (
+        <div className="absolute inset-0 flex items-center justify-center p-3">{props.overlay}</div>
+      ) : null}
       {/* overlay frame for crisp border (separate from canvas pixels) */}
       <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/10" />
     </div>
