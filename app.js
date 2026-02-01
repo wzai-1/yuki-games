@@ -382,39 +382,42 @@ import {
     const ax = state.core.apple.x * cell;
     const ay = state.core.apple.y * cell;
 
-    // body
-    ctx.save();
-    ctx.fillStyle = appleColor;
-    const r = cell * 0.34;
-    const cx = ax + cell * 0.5;
-    const cy = ay + cell * 0.55;
+    // IMPORTANT: keep all drawing strictly inside the cell bounds.
+    // iOS browsers make it very obvious when a shape bleeds ~1px past the edge.
+    const pad = cell * 0.16;
+    const x = ax + pad;
+    const y = ay + pad;
+    const w = cell - pad * 2;
+    const r = cell * 0.22;
 
-    ctx.beginPath();
-    ctx.arc(cx - r*0.55, cy, r, 0, Math.PI*2);
-    ctx.arc(cx + r*0.55, cy, r, 0, Math.PI*2);
-    ctx.closePath();
+    ctx.save();
+
+    // body
+    ctx.fillStyle = appleColor;
+    drawRoundedRect(x, y, w, w, r);
     ctx.fill();
 
-    // highlight
-    ctx.globalAlpha = 0.25;
+    // highlight (inside)
+    ctx.globalAlpha = 0.22;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.ellipse(cx - r*0.7, cy - r*0.4, r*0.35, r*0.55, -0.4, 0, Math.PI*2);
+    ctx.ellipse(x + w*0.30, y + w*0.30, w*0.16, w*0.24, -0.6, 0, Math.PI*2);
     ctx.fill();
 
-    // stem + leaf
+    // stem (inside)
     ctx.globalAlpha = 1;
     ctx.strokeStyle = 'rgba(90,60,40,0.95)';
-    ctx.lineWidth = Math.max(2, cell * 0.10);
+    ctx.lineWidth = Math.max(2, cell * 0.08);
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(cx, ay + cell * 0.30);
-    ctx.lineTo(cx, ay + cell * 0.14);
+    ctx.moveTo(x + w*0.55, y + w*0.18);
+    ctx.lineTo(x + w*0.55, y + w*0.02);
     ctx.stroke();
 
+    // leaf (inside)
     ctx.fillStyle = 'rgba(70, 190, 110, 0.95)';
     ctx.beginPath();
-    ctx.ellipse(cx + cell*0.18, ay + cell*0.18, cell*0.18, cell*0.10, -0.6, 0, Math.PI*2);
+    ctx.ellipse(x + w*0.72, y + w*0.12, w*0.18, w*0.10, -0.6, 0, Math.PI*2);
     ctx.fill();
 
     ctx.restore();
