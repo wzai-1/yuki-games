@@ -170,8 +170,11 @@ body[data-theme="light"] .canvas-wrap{
 }
 
 canvas{
-  width: 100%;
-  height: 100%;
+  /* Slight inset to guarantee nothing touches the very edge (iOS Chrome can show a 1px seam). */
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  margin: 1px;
+
   display: block;
   border-radius: 0;
   border: 0;

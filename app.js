@@ -201,14 +201,26 @@ import {
   function computeCanvasSize(){
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
 
-    const rect = (canvasWrap || canvas).getBoundingClientRect();
-    const cssSize = Math.floor(Math.max(260, Math.min(rect.width || 480, 560)));
-    // Make the backing store size divisible by GRID to avoid off-by-one overdraw
-    let pxSize = Math.floor(cssSize * dpr);
-    pxSize = pxSize - (pxSize % GRID);
+    // Measure the canvas box itself to avoid iOS subpixel edge artifacts.
+    const rect = canvas.getBoundingClientRect();
+    const rawCssSize = Math.max(240, Math.min(rect.width || 480, 560));
+
+    // Make the backing store size divisible by GRID to avoid off-by-one overdraw.
+    // Then set CSS size from the backing size to prevent fractional scaling
+    // (which causes 1px bleed on iOS Chrome).
+    let pxSize = Math.floor(rawCssSize * dpr);
+    pxSize = Math.max(GRID, Math.floor(pxSize / GRID) * GRID);
+    const cssSize = pxSize / dpr;
 
     canvas.width = pxSize;
     canvas.height = pxSize;
+    canvas.style.width = `${cssSize}px`;
+    canvas.style.height = `${cssSize}px`;
+
+    if (canvasWrap){
+      canvasWrap.style.width = `${cssSize}px`;
+      canvasWrap.style.height = `${cssSize}px`;
+    }
 
     state.view.dpr = dpr;
     state.view.cellPx = pxSize / GRID;
