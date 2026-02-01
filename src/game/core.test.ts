@@ -4,6 +4,7 @@ import {
   placeApple,
   queueDirection,
   step,
+  stepWithEvent,
   withinBounds,
 } from './core'
 
@@ -68,8 +69,9 @@ describe('snake core', () => {
       dir: 'right' as const,
       queuedDir: null,
     }
-    const r = step(st)
-    expect(r.status).toBe('dead')
+    const r = stepWithEvent(st)
+    expect(r.event).toBe('gameover_wall')
+    expect(r.state.status).toBe('dead')
   })
 
   it('eat increases score and relocates apple', () => {
@@ -89,9 +91,10 @@ describe('snake core', () => {
       score: 0,
       growing: 0,
     }
-    const r = step(st, () => 0.99)
-    expect(r.score).toBe(1)
-    expect(r.apple).not.toEqual({ x: 3, y: 2 })
+    const r = stepWithEvent(st, () => 0.99)
+    expect(r.event).toBe('eat')
+    expect(r.state.score).toBeGreaterThan(1)
+    expect(r.state.apple).not.toEqual({ x: 3, y: 2 })
   })
 
   it('queueDirection refuses opposite turns', () => {

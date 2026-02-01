@@ -8,14 +8,16 @@ import {
   reset,
   resume,
   start,
-  step,
+  stepWithEvent,
   type GameState,
 } from '../game/core'
 import { loadBest, saveBest } from '../game/storage'
 import SnakeCanvas from './SnakeCanvas'
 import Segmented from './components/Segmented'
 import Toggle from './components/Toggle'
-import { useKeyboardInput, useSwipeInput } from './useInput'
+import { useKeyboardInput } from './useInput'
+import { useSwipeOnElement } from './useSwipeOnElement'
+import { haptic, playSfx, primeAudio } from './sfx'
 
 const GRID = 18
 
@@ -32,6 +34,7 @@ export default function App() {
 
   const [best, setBest] = useState(() => loadBest())
   const [state, setState] = useState<GameState>(() => createInitialState(config))
+  const boardRef = useRef<HTMLDivElement | null>(null)
 
   // restart when config changes
   useEffect(() => {
@@ -59,7 +62,24 @@ export default function App() {
     }
 
     loopRef.current = window.setInterval(() => {
-      setState((s) => step(s))
+      setState((s) => {
+        const r = stepWithEvent(s)
+        if (r.event === 'eat') {
+          if (sound) {
+            primeAudio()
+            playSfx('eat')
+          }
+          haptic(10)
+        }
+        if (r.event === 'gameover_self' || r.event === 'gameover_wall') {
+          if (sound) {
+            primeAudio()
+            playSfx('gameover')
+          }
+          haptic([30, 40, 30])
+        }
+        return r.state
+      })
     }, tickMs)
 
     return () => {
@@ -82,16 +102,12 @@ export default function App() {
   }, [])
 
   useKeyboardInput(onDir, togglePause)
-  useSwipeInput(onDir)
+  useSwipeOnElement(boardRef.current, onDir, true)
 
   const restartAndStart = useCallback(() => {
+    if (sound) { primeAudio(); playSfx('start') }
     setState(() => start(createInitialState(config)))
-  }, [config])
-
-  useEffect(() => {
-    if (!sound) return
-    // tiny beep on eat/death: skip for now (keeps stack simple)
-  }, [sound])
+  }, [config, sound])
 
   return (
     <div className="min-h-dvh bg-slate-950 text-slate-100">
@@ -114,7 +130,7 @@ export default function App() {
               <button
                 type="button"
                 className="rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
-                onClick={() => setState((s) => start(s))}
+                onClick={() => { if (sound) { primeAudio(); playSfx('start') } ; setState((s) => start(s)) }}
               >
                 开始
               </button>
@@ -163,7 +179,7 @@ export default function App() {
         ) : null}
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_280px]">
-          <div className="flex flex-col items-center">
+          <div ref={boardRef} className="flex flex-col items-center">
             <SnakeCanvas
               state={state}
               overlay={
@@ -177,7 +193,7 @@ export default function App() {
                       <button
                         type="button"
                         className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
-                        onClick={() => setState((s) => start(s))}
+                        onClick={() => { if (sound) { primeAudio(); playSfx('start') } ; setState((s) => start(s)) }}
                       >
                         开始
                       </button>
@@ -257,4 +273,3 @@ function ScorePill(props: { label: string; value: any }) {
     </div>
   )
 }
-

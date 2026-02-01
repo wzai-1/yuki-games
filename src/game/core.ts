@@ -1,5 +1,6 @@
 import type { Direction, GameConfig, GameStatus, Vec } from './types'
 import { getDifficulty } from './difficulty'
+import { pointsForApple } from './scoring'
 
 export type GameState = Readonly<{
   grid: number
@@ -12,7 +13,10 @@ export type GameState = Readonly<{
   status: GameStatus
   wrapWalls: boolean
   tickMs: number
+  difficulty: GameConfig['difficulty']
 }>
+
+export type StepEvent = 'eat' | 'gameover_wall' | 'gameover_self' | null
 
 const DIR_VEC: Record<Direction, Vec> = {
   up: { x: 0, y: -1 },
@@ -80,6 +84,7 @@ export function createInitialState(config: GameConfig, rng = Math.random): GameS
     status: 'ready',
     wrapWalls: config.wrapWalls,
     tickMs: diff.tickMs,
+    difficulty: config.difficulty,
   }
 }
 
@@ -111,7 +116,11 @@ export function reset(config: GameConfig, rng = Math.random): GameState {
 }
 
 export function step(state: GameState, rng = Math.random): GameState {
-  if (state.status !== 'running') return state
+  return stepWithEvent(state, rng).state
+}
+
+export function stepWithEvent(state: GameState, rng = Math.random): { state: GameState; event: StepEvent } {
+  if (state.status !== 'running') return { state, event: null }
 
   const dir = state.queuedDir ?? state.dir
   const dv = DIR_VEC[dir]
@@ -121,7 +130,7 @@ export function step(state: GameState, rng = Math.random): GameState {
   if (state.wrapWalls) {
     next = wrap(next, state.grid)
   } else if (!withinBounds(next, state.grid)) {
-    return { ...state, status: 'dead', dir, queuedDir: null }
+    return { state: { ...state, status: 'dead', dir, queuedDir: null }, event: 'gameover_wall' }
   }
 
   // Tail cell is allowed if we're not growing (it will move away)
@@ -130,7 +139,7 @@ export function step(state: GameState, rng = Math.random): GameState {
   const tail = body[0]
   const hitsSelf = contains(body, next) && !(eq(next, tail) && !willGrow && state.growing === 0)
   if (hitsSelf) {
-    return { ...state, status: 'dead', dir, queuedDir: null }
+    return { state: { ...state, status: 'dead', dir, queuedDir: null }, event: 'gameover_self' }
   }
 
   let snake = [...body, next]
@@ -138,10 +147,12 @@ export function step(state: GameState, rng = Math.random): GameState {
   let score = state.score
   let apple = state.apple
 
+  let event: StepEvent = null
   if (willGrow) {
-    score += 1
+    score += pointsForApple({ difficulty: state.difficulty, wrapWalls: state.wrapWalls })
     growing += 2
     apple = placeApple(state.grid, snake, rng)
+    event = 'eat'
   }
 
   if (growing > 0) {
@@ -151,12 +162,15 @@ export function step(state: GameState, rng = Math.random): GameState {
   }
 
   return {
-    ...state,
-    snake,
-    dir,
-    queuedDir: null,
-    apple,
-    growing,
-    score,
+    state: {
+      ...state,
+      snake,
+      dir,
+      queuedDir: null,
+      apple,
+      growing,
+      score,
+    },
+    event,
   }
 }
