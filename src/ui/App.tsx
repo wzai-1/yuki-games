@@ -70,7 +70,6 @@ export default function App() {
 
   const onDir = useCallback((d: import('../game/types').Direction) => {
     setState((s) => queueDirection(s, d))
-    setState((s) => (s.status === 'ready' ? start(s) : s))
     setState((s) => (s.status === 'paused' ? resume(s) : s))
   }, [])
 
@@ -168,9 +167,7 @@ export default function App() {
             <SnakeCanvas state={state} />
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <ScorePill label="分数" value={state.score} />
-              <ScorePill label="最高" value={best} />
-              <ScorePill label="状态" value={humanStatus(state.status)} />
-            </div>
+              <ScorePill label="最高" value={best} />            </div>
           </div>
 
           <aside className="rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
@@ -196,6 +193,66 @@ export default function App() {
             </div>
           </aside>
         </div>
+
+        <OverlayModal
+          open={state.status === 'ready'}
+          title="准备好了吗？"
+          body="按下开始，或者用方向键/WASD 先选方向再开始。手机也可以滑动（不会立刻开局）。"
+          primaryLabel="开始"
+          onPrimary={() => setState((s) => start(s))}
+          secondaryLabel="玩法说明"
+          onSecondary={() => setShowHelp(true)}
+        />
+
+        <OverlayModal
+          open={state.status === 'dead'}
+          title="游戏结束"
+          body="想再来一局吗？"
+          primaryLabel="重来"
+          onPrimary={onRestart}
+        />
+      </div>
+    </div>
+  )
+}
+
+function OverlayModal(props: {
+  open: boolean
+  title: string
+  body?: string
+  primaryLabel: string
+  onPrimary: () => void
+  secondaryLabel?: string
+  onSecondary?: () => void
+}) {
+  if (!props.open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-sm rounded-2xl bg-slate-950/95 p-4 ring-1 ring-white/15">
+        <div className="text-sm font-semibold">{props.title}</div>
+        {props.body ? (
+          <div className="mt-2 text-xs leading-5 text-slate-300">{props.body}</div>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {props.secondaryLabel && props.onSecondary ? (
+            <button
+              type="button"
+              className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+              onClick={props.onSecondary}
+            >
+              {props.secondaryLabel}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
+            onClick={props.onPrimary}
+          >
+            {props.primaryLabel}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -219,17 +276,3 @@ function ScorePill(props: { label: string; value: any }) {
   )
 }
 
-function humanStatus(s: string) {
-  switch (s) {
-    case 'ready':
-      return '准备'
-    case 'running':
-      return '进行中'
-    case 'paused':
-      return '暂停'
-    case 'dead':
-      return '结束'
-    default:
-      return s
-  }
-}
