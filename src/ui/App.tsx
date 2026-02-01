@@ -17,15 +17,12 @@ import Segmented from './components/Segmented'
 import Toggle from './components/Toggle'
 import { useKeyboardInput, useSwipeInput } from './useInput'
 
-type Theme = 'dark' | 'light'
-
 const GRID = 18
 
 export default function App() {
   const [difficulty, setDifficulty] = useState<DifficultyId>('normal')
   const [wrapWalls, setWrapWalls] = useState(false)
   const [sound, setSound] = useState(false)
-  const [theme, setTheme] = useState<Theme>('dark')
   const [showHelp, setShowHelp] = useState(false) // default collapsed
 
   const config = useMemo(
@@ -71,16 +68,16 @@ export default function App() {
     }
   }, [tickMs])
 
-  const onDir = useCallback((d: any) => {
+  const onDir = useCallback((d: import('../game/types').Direction) => {
     setState((s) => queueDirection(s, d))
     setState((s) => (s.status === 'ready' ? start(s) : s))
+    setState((s) => (s.status === 'paused' ? resume(s) : s))
   }, [])
 
   const togglePause = useCallback(() => {
     setState((s) => {
       if (s.status === 'running') return pause(s)
       if (s.status === 'paused') return resume(s)
-      if (s.status === 'ready') return start(s)
       return s
     })
   }, [])
@@ -98,12 +95,12 @@ export default function App() {
   }, [sound])
 
   return (
-    <div className={theme === 'dark' ? 'min-h-dvh bg-slate-950 text-slate-100' : 'min-h-dvh bg-slate-50 text-slate-900'}>
+    <div className="min-h-dvh bg-slate-950 text-slate-100">
       <div className="mx-auto max-w-[920px] px-3 py-4">
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-sm font-semibold tracking-tight">贪吃蛇</h1>
-            <p className="text-[11px] text-slate-400">React + Tailwind 版 · 键盘/滑动都支持</p>
+            <p className="text-[11px] text-slate-400">键盘 / 手机滑动都支持</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -113,13 +110,46 @@ export default function App() {
             >
               {showHelp ? '收起说明' : '玩法说明'}
             </button>
-            <button
-              type="button"
-              className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
-              onClick={onRestart}
-            >
-              重新开始
-            </button>
+
+            {state.status === 'ready' ? (
+              <button
+                type="button"
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1.5 text-xs text-emerald-100 ring-1 ring-emerald-400/30 hover:bg-emerald-500/25"
+                onClick={() => setState((s) => start(s))}
+              >
+                开始
+              </button>
+            ) : null}
+
+            {state.status === 'paused' ? (
+              <button
+                type="button"
+                className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+                onClick={() => setState((s) => resume(s))}
+              >
+                继续
+              </button>
+            ) : null}
+
+            {state.status === 'running' ? (
+              <button
+                type="button"
+                className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+                onClick={() => setState((s) => pause(s))}
+              >
+                暂停
+              </button>
+            ) : null}
+
+            {state.status === 'dead' ? (
+              <button
+                type="button"
+                className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-white/10"
+                onClick={onRestart}
+              >
+                重来
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -135,7 +165,7 @@ export default function App() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_280px]">
           <div className="flex flex-col items-center">
-            <SnakeCanvas state={state} theme={theme} />
+            <SnakeCanvas state={state} />
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <ScorePill label="分数" value={state.score} />
               <ScorePill label="最高" value={best} />
@@ -157,11 +187,6 @@ export default function App() {
                 <div className="flex flex-wrap items-center gap-3">
                   <Toggle checked={wrapWalls} onChange={setWrapWalls} label="穿墙" />
                   <Toggle checked={sound} onChange={setSound} label="音效" />
-                  <Toggle
-                    checked={theme === 'light'}
-                    onChange={(v) => setTheme(v ? 'light' : 'dark')}
-                    label="亮色"
-                  />
                 </div>
               </Row>
 
@@ -171,10 +196,6 @@ export default function App() {
             </div>
           </aside>
         </div>
-
-        <footer className="mt-6 text-center text-[11px] text-slate-500">
-          iPhone Chrome 右边缘 1px 伪影已通过“像素对齐 + 1px 内缩”规避。
-        </footer>
       </div>
     </div>
   )

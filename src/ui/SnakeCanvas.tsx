@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react'
 import type { GameState } from '../game/core'
-import { computeCanvasSizing, draw, type RenderTheme } from '../game/render'
+import { computeCanvasSizing, draw } from '../game/render'
 
 export default function SnakeCanvas(props: {
   state: GameState
-  theme: RenderTheme
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -60,8 +59,8 @@ export default function SnakeCanvas(props: {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    draw(ctx, { grid: props.state.grid, theme: props.theme }, props.state.snake, props.state.apple)
-  }, [props.state, props.theme])
+    draw(ctx, { grid: props.state.grid, theme: 'dark' }, props.state.snake, props.state.apple)
+  }, [props.state])
 
   return (
     <div
